@@ -1,39 +1,59 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import { TrendingUp, Target, Users } from "lucide-react";
+import { TrendingUp, Target, Users, Loader2 } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
-// Dados fixos dos vendedores
-const salesData = [
-  { id: 1, vendedor: "João", categoria: "Eletrônicos", meta: 50000, realizado: 45000 },
-  { id: 2, vendedor: "João", categoria: "Móveis", meta: 30000, realizado: 35000 },
-  { id: 3, vendedor: "João", categoria: "Beleza", meta: 20000, realizado: 18000 },
-  
-  { id: 4, vendedor: "Maria", categoria: "Eletrônicos", meta: 60000, realizado: 62000 },
-  { id: 5, vendedor: "Maria", categoria: "Móveis", meta: 40000, realizado: 38000 },
-  { id: 6, vendedor: "Maria", categoria: "Beleza", meta: 25000, realizado: 27000 },
-  
-  { id: 7, vendedor: "Pedro", categoria: "Eletrônicos", meta: 45000, realizado: 40000 },
-  { id: 8, vendedor: "Pedro", categoria: "Móveis", meta: 35000, realizado: 32000 },
-  { id: 9, vendedor: "Pedro", categoria: "Beleza", meta: 15000, realizado: 16000 },
-  
-  { id: 10, vendedor: "Ana", categoria: "Eletrônicos", meta: 55000, realizado: 58000 },
-  { id: 11, vendedor: "Ana", categoria: "Móveis", meta: 38000, realizado: 40000 },
-  { id: 12, vendedor: "Ana", categoria: "Beleza", meta: 22000, realizado: 20000 },
-  
-  { id: 13, vendedor: "Lucas", categoria: "Eletrônicos", meta: 48000, realizado: 50000 },
-  { id: 14, vendedor: "Lucas", categoria: "Móveis", meta: 32000, realizado: 30000 },
-  { id: 15, vendedor: "Lucas", categoria: "Beleza", meta: 18000, realizado: 19000 },
-];
+interface SalesData {
+  id: number;
+  vendedor: string;
+  categoria: string;
+  meta: number;
+  realizado: number;
+}
 
 export default function DashboardMetas() {
   const [vendedorSelecionado, setVendedorSelecionado] = useState<string>("Todos");
   const [categoriaSelecionada, setCategoriaSelecionada] = useState<string>("Todas");
+  const [salesData, setSalesData] = useState<SalesData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Buscar dados do Supabase
+  useEffect(() => {
+    async function fetchSalesData() {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        const { data, error } = await supabase
+          .from('vendas')
+          .select('*')
+          .order('vendedor', { ascending: true });
+
+        if (error) throw error;
+
+        setSalesData(data || []);
+      } catch (err) {
+        console.error('Erro ao buscar dados:', err);
+        setError('Erro ao carregar dados do banco de dados');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchSalesData();
+  }, []);
 
   // Extrair vendedores e categorias únicos
-  const vendedores = ["Todos", ...Array.from(new Set(salesData.map(item => item.vendedor)))];
-  const categorias = ["Todas", ...Array.from(new Set(salesData.map(item => item.categoria)))];
+  const vendedores = useMemo(() => {
+    return ["Todos", ...Array.from(new Set(salesData.map(item => item.vendedor)))];
+  }, [salesData]);
+
+  const categorias = useMemo(() => {
+    return ["Todas", ...Array.from(new Set(salesData.map(item => item.categoria)))];
+  }, [salesData]);
 
   // Filtrar dados
   const dadosFiltrados = useMemo(() => {
@@ -42,12 +62,12 @@ export default function DashboardMetas() {
       const matchCategoria = categoriaSelecionada === "Todas" || item.categoria === categoriaSelecionada;
       return matchVendedor && matchCategoria;
     });
-  }, [vendedorSelecionado, categoriaSelecionada]);
+  }, [salesData, vendedorSelecionado, categoriaSelecionada]);
 
   // Calcular totais
   const totais = useMemo(() => {
-    const metaTotal = dadosFiltrados.reduce((acc, item) => acc + item.meta, 0);
-    const realizadoTotal = dadosFiltrados.reduce((acc, item) => acc + item.realizado, 0);
+    const metaTotal = dadosFiltrados.reduce((acc, item) => acc + Number(item.meta), 0);
+    const realizadoTotal = dadosFiltrados.reduce((acc, item) => acc + Number(item.realizado), 0);
     const percentual = metaTotal > 0 ? (realizadoTotal / metaTotal) * 100 : 0;
     return { metaTotal, realizadoTotal, percentual };
   }, [dadosFiltrados]);
@@ -59,8 +79,8 @@ export default function DashboardMetas() {
       if (!acc[key]) {
         acc[key] = { nome: key, meta: 0, realizado: 0 };
       }
-      acc[key].meta += item.meta;
-      acc[key].realizado += item.realizado;
+      acc[key].meta += Number(item.meta);
+      acc[key].realizado += Number(item.realizado);
       return acc;
     }, {} as Record<string, { nome: string; meta: number; realizado: number }>);
     
@@ -73,6 +93,54 @@ export default function DashboardMetas() {
       currency: 'BRL',
     }).format(valor);
   };
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-cyan-50 via-blue-50 to-sky-100 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 animate-spin text-cyan-600 mx-auto mb-4" />
+          <p className="text-gray-600 text-lg">Carregando dados...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-cyan-50 via-blue-50 to-sky-100 flex items-center justify-center">
+        <div className="bg-white rounded-2xl shadow-lg p-8 max-w-md text-center">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <span className="text-3xl">⚠️</span>
+          </div>
+          <h2 className="text-xl font-bold text-gray-800 mb-2">Erro ao Carregar Dados</h2>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-6 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 transition-colors"
+          >
+            Tentar Novamente
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Empty state
+  if (salesData.length === 0) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-cyan-50 via-blue-50 to-sky-100 flex items-center justify-center">
+        <div className="bg-white rounded-2xl shadow-lg p-8 max-w-md text-center">
+          <div className="w-16 h-16 bg-cyan-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Target className="w-8 h-8 text-cyan-600" />
+          </div>
+          <h2 className="text-xl font-bold text-gray-800 mb-2">Nenhum Dado Encontrado</h2>
+          <p className="text-gray-600">Adicione dados de vendas no banco de dados para visualizar o dashboard.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-cyan-50 via-blue-50 to-sky-100">
@@ -244,7 +312,7 @@ export default function DashboardMetas() {
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {dadosFiltrados.map((item) => {
-                  const percentual = (item.realizado / item.meta) * 100;
+                  const percentual = (Number(item.realizado) / Number(item.meta)) * 100;
                   const atingiuMeta = percentual >= 100;
                   
                   return (
@@ -263,10 +331,10 @@ export default function DashboardMetas() {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-900 font-medium">
-                        {formatarMoeda(item.meta)}
+                        {formatarMoeda(Number(item.meta))}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-900 font-medium">
-                        {formatarMoeda(item.realizado)}
+                        {formatarMoeda(Number(item.realizado))}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-center">
                         <span className={`text-sm font-bold ${atingiuMeta ? 'text-green-600' : 'text-amber-600'}`}>

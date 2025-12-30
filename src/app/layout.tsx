@@ -17,8 +17,29 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Criado com a Lasy",
-  description: "Projeto criado com Lasy AI",
+  title: "Topdemais Piscinas - Dashboard de Metas",
+  description: "Dashboard de acompanhamento de metas de vendas da equipe Topdemais Piscinas",
+  manifest: "/manifest.json",
+  themeColor: "#0891b2",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Topdemais",
+  },
+  formatDetection: {
+    telephone: false,
+  },
+  openGraph: {
+    type: "website",
+    siteName: "Topdemais Piscinas",
+    title: "Dashboard de Metas",
+    description: "Acompanhamento de metas de vendas",
+  },
+  twitter: {
+    card: "summary",
+    title: "Topdemais Piscinas",
+    description: "Dashboard de Metas",
+  },
 };
 
 export default function RootLayout({
@@ -29,7 +50,53 @@ export default function RootLayout({
   return (
     <html lang="pt-BR">
       <head>
+        {/* PWA Meta Tags */}
+        <meta name="application-name" content="Topdemais Piscinas" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="Topdemais" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="format-detection" content="telephone=no" />
+        
+        {/* Apple Touch Icons */}
+        <link rel="apple-touch-icon" href="/icon-192.png" />
+        <link rel="apple-touch-icon" sizes="192x192" href="/icon-192.png" />
+        <link rel="apple-touch-icon" sizes="512x512" href="/icon-512.png" />
+        
+        {/* Favicon */}
+        <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
+        <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png" />
+        
+        {/* Manifest */}
+        <link rel="manifest" href="/manifest.json" />
+        
+        {/* Theme Color */}
+        <meta name="theme-color" content="#0891b2" />
+        <meta name="msapplication-TileColor" content="#0891b2" />
+        <meta name="msapplication-tap-highlight" content="no" />
+        
+        {/* Viewport for PWA */}
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes, viewport-fit=cover" />
+        
         <Script src="/lasy-bridge.js" strategy="beforeInteractive" />
+        
+        {/* Service Worker Registration */}
+        <Script id="register-sw" strategy="afterInteractive">
+          {`
+            if ('serviceWorker' in navigator) {
+              window.addEventListener('load', function() {
+                navigator.serviceWorker.register('/sw.js').then(
+                  function(registration) {
+                    console.log('Service Worker registrado com sucesso:', registration.scope);
+                  },
+                  function(err) {
+                    console.log('Falha ao registrar Service Worker:', err);
+                  }
+                );
+              });
+            }
+          `}
+        </Script>
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
